@@ -16,7 +16,7 @@ var (
 	envAuthToken     = "FAL_AUTH_TOKEN"
 	proxyUrl         = "https://fal.run/fal-ai/"
 	defaultUserAgent = "fal/go"
-	ErrNoAuth        = errors.New(`no auth token or token source provided -- perhaps you forgot to pass replicate.WithToken("...")`)
+	ErrNoAuth        = errors.New(`no auth token or token source provided.`)
 	ErrEnvVarNotSet  = fmt.Errorf("%s environment variable not set", envAuthToken)
 	ErrEnvVarEmpty   = fmt.Errorf("%s environment variable is empty", envAuthToken)
 )
