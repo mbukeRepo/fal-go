@@ -146,7 +146,7 @@ func (r *Client) do(request *http.Request, out interface{}) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to make request: %w", err)
+		return fmt.Errorf("failed to make request with status code: %v", resp.StatusCode)
 	}
 
 	responseBytes, err := io.ReadAll(resp.Body)
