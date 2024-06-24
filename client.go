@@ -1,4 +1,4 @@
-package main
+package fal
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ var (
 	envAuthToken     = "FAL_AUTH_TOKEN"
 	proxyUrl         = "https://fal.run/fal-ai/"
 	defaultUserAgent = "fal/go"
-	ErrNoAuth        = errors.New(`no auth token or token source provided.`)
+	ErrNoAuth        = errors.New(`no auth token or token source provided`)
 	ErrEnvVarNotSet  = fmt.Errorf("%s environment variable not set", envAuthToken)
 	ErrEnvVarEmpty   = fmt.Errorf("%s environment variable is empty", envAuthToken)
 )
@@ -31,6 +31,7 @@ type clientOptions struct {
 	baseUrl    string
 	httpClient *http.Client
 	userAgent  string
+	subdomain  string
 }
 
 type ClientOption func(*clientOptions) error
@@ -101,6 +102,23 @@ func WithHttpClient(httpClient *http.Client) ClientOption {
 	}
 }
 
+func WithSubdomain(subdomain string) ClientOption {
+	return func(o *clientOptions) error {
+		o.baseUrl = fmt.Sprintf("https://%s.fal.run/fal-ai/", subdomain)
+		return nil
+	}
+}
+
+func constructUrl(baseUrl, route string) string {
+	route = strings.TrimPrefix(route, "/")
+
+	if !strings.HasSuffix(baseUrl, "/") {
+		baseUrl += "/"
+	}
+
+	return baseUrl + route
+}
+
 func (r *Client) newRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	url := constructUrl(r.options.baseUrl, path)
 
@@ -119,7 +137,7 @@ func (r *Client) newRequest(ctx context.Context, method, path string, body io.Re
 	return req, nil
 }
 
-func (r *Client) fetch(ctx context.Context, method, path string, body interface{}, out interface{}) error {
+func (r *Client) Fetch(ctx context.Context, method, path string, body interface{}, out interface{}) error {
 	bodyBuffer := &bytes.Buffer{}
 
 	if body != nil {
@@ -161,35 +179,4 @@ func (r *Client) do(request *http.Request, out interface{}) error {
 	}
 
 	return nil
-}
-
-func constructUrl(baseUrl, route string) string {
-	route = strings.TrimPrefix(route, "/")
-
-	if !strings.HasSuffix(baseUrl, "/") {
-		baseUrl += "/"
-	}
-
-	return baseUrl + route
-}
-
-func main() {
-	client, err := NewClient(WithTokenFromEnv())
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	ctx := context.Background()
-	var out interface{}
-	body := map[string]interface{}{
-		"prompt": "Digital art, portrait of an anthropomorphic roaring Tiger warrior with full armor, close up in the middle of a battle, behind him there is a banner with the text \"Open Source\"",
-	}
-	err = client.fetch(ctx, "POST", "stable-diffusion-v3-medium", body, &out)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	// convert to json string
-	fmt.Println(out)
 }
