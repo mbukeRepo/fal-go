@@ -31,7 +31,6 @@ type clientOptions struct {
 	baseUrl    string
 	httpClient *http.Client
 	userAgent  string
-	subdomain  string
 }
 
 type ClientOption func(*clientOptions) error
@@ -102,25 +101,40 @@ func WithHttpClient(httpClient *http.Client) ClientOption {
 	}
 }
 
-func WithSubdomain(subdomain string) ClientOption {
-	return func(o *clientOptions) error {
-		o.baseUrl = fmt.Sprintf("https://%s.fal.run/fal-ai/", subdomain)
-		return nil
-	}
+type QueryParams map[string]string
+
+// TODO: validate the appId
+type UrlOptions struct {
+	Subdomain string
+	Query     *QueryParams
+	AppId     string
 }
 
-func constructUrl(baseUrl, route string) string {
+func constructUrl(baseUrl, route string, urlOptions *UrlOptions) string {
 	route = strings.TrimPrefix(route, "/")
 
 	if !strings.HasSuffix(baseUrl, "/") {
 		baseUrl += "/"
 	}
+	queryParams := ""
 
-	return baseUrl + route
+	if urlOptions != nil && urlOptions.Query != nil {
+		queryParams := "?"
+		for key, value := range *urlOptions.Query {
+			queryParams += fmt.Sprintf("%s=%s&", key, value)
+		}
+		queryParams = strings.TrimSuffix(queryParams, "&")
+	}
+
+	if urlOptions != nil && urlOptions.Subdomain != "" {
+		baseUrl = fmt.Sprintf("https://%s.fal.run/%s", urlOptions.Subdomain, urlOptions.AppId)
+	}
+
+	return baseUrl + route + queryParams
 }
 
-func (r *Client) newRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
-	url := constructUrl(r.options.baseUrl, path)
+func (r *Client) newRequest(ctx context.Context, method, path string, body io.Reader, urlOptions *UrlOptions) (*http.Request, error) {
+	url := constructUrl(r.options.baseUrl, path, urlOptions)
 
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 
@@ -137,7 +151,7 @@ func (r *Client) newRequest(ctx context.Context, method, path string, body io.Re
 	return req, nil
 }
 
-func (r *Client) Fetch(ctx context.Context, method, path string, body interface{}, out interface{}) error {
+func (r *Client) Fetch(ctx context.Context, method, path string, body interface{}, out interface{}, urlOptions *UrlOptions) error {
 	bodyBuffer := &bytes.Buffer{}
 
 	if body != nil {
@@ -147,7 +161,7 @@ func (r *Client) Fetch(ctx context.Context, method, path string, body interface{
 		}
 		bodyBuffer = bytes.NewBuffer(bodyBytes)
 	}
-	req, err := r.newRequest(ctx, method, path, bodyBuffer)
+	req, err := r.newRequest(ctx, method, path, bodyBuffer, urlOptions)
 	if err != nil {
 		return err
 	}
