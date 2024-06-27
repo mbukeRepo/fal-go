@@ -24,6 +24,7 @@ var (
 type Client struct {
 	options *clientOptions
 	c       *http.Client
+	Queue   *Queue // for running long running tasks
 }
 
 type clientOptions struct {
@@ -62,6 +63,10 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		return nil, ErrNoAuth
 	}
 	c.c = c.options.httpClient
+	c.Queue = &Queue{
+		c:         c,
+		Subdomain: "queue",
+	}
 	return c, nil
 }
 

@@ -32,10 +32,11 @@ type QueueStatus struct {
 
 type QueueSubscribeOptions struct {
 	PollInterval  int
-	OnEnqueue     *func(requestId string)
+	OnEnqueue     func(requestId string)
 	WebhookUrl    string
 	Logs          bool
-	OnQueueUpdate *func(status QueueStatus)
+	OnQueueUpdate func(status QueueStatus)
+	Input         interface{}
 }
 
 type RunOptions struct {
@@ -60,17 +61,13 @@ type QueueResult struct {
 }
 
 type Queue struct {
-	c         Client
+	c         *Client
 	Subdomain string
-}
-
-func NewQueue(c Client, subdomain string) *Queue {
-	return &Queue{c: c, Subdomain: subdomain}
 }
 
 func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubscribeOptions) (*interface{}, error) {
 	if runOptions.OnEnqueue != nil {
-		(*runOptions.OnEnqueue)(id)
+		(runOptions.OnEnqueue)(id)
 	}
 
 	result, err := q.Submit(ctx, id, nil)
@@ -104,7 +101,7 @@ func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubsc
 				}
 
 				if runOptions.OnQueueUpdate != nil {
-					(*runOptions.OnQueueUpdate)(*status)
+					(runOptions.OnQueueUpdate)(*status)
 				}
 
 				if status.Status == COMPLETED {
