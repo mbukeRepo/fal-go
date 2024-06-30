@@ -4,7 +4,6 @@ package fal
 // TODO: comment everything and write some tests
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 )
@@ -56,18 +55,12 @@ type EnqueueResult struct {
 	CancelUrl   string `json:"cancel_url"`
 }
 
-type QueueResult struct {
-	Status   `json:"status" binding:"oneof=in_progress completed in_queue"`
-	Logs     []map[string]string `json:"logs"`
-	Response map[string]string   `json:"response"`
-}
-
 type Queue struct {
 	c         *Client
 	Subdomain string
 }
 
-func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubscribeOptions) (*interface{}, error) {
+func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubscribeOptions) (interface{}, error) {
 	if runOptions.OnEnqueue != nil {
 		(runOptions.OnEnqueue)(id)
 	}
@@ -101,7 +94,7 @@ func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubsc
 				close(stopChannel)
 				return
 			case <-ctx.Done():
-				fmt.Println("Context done inside goroutine")
+				close(stopChannel)
 				return
 			default:
 				time.Sleep(time.Duration(runOptions.PollInterval) * time.Millisecond)
@@ -133,7 +126,6 @@ func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubsc
 							Subdomain: "queue",
 						},
 					})
-					fmt.Println(result)
 					if err != nil {
 						errorChannel <- err
 					} else {
@@ -148,7 +140,7 @@ func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubsc
 
 	select {
 	case result := <-resultChannel:
-		return &result, nil
+		return result, nil
 	case err := <-errorChannel:
 		return nil, err
 	case <-ctx.Done():
@@ -157,20 +149,19 @@ func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubsc
 	}
 }
 
-func (q *Queue) Result(ctx context.Context, requestId string, runOptions *RunOptions) (*QueueResult, error) {
-	var out QueueResult
+func (q *Queue) Result(ctx context.Context, requestId string, runOptions *RunOptions) (interface{}, error) {
+	var out interface{}
 	err := q.c.Fetch(ctx, string(GET), runOptions.Path, nil, &out, runOptions.Options)
 	if err != nil {
 		return nil, err
 	}
 
-	return &out, nil
+	return out, nil
 }
 
 func (q *Queue) GetStatus(ctx context.Context, requestId string, runOptions *RunOptions) (*QueueStatus, error) {
 	var out QueueStatus
 	err := q.c.Fetch(ctx, string(runOptions.Method), runOptions.Path, nil, &out, runOptions.Options)
-	fmt.Println(out)
 
 	if err != nil {
 		return nil, err

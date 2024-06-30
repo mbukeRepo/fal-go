@@ -140,8 +140,6 @@ func constructUrl(baseUrl, route string, urlOptions *UrlOptions) string {
 
 func (r *Client) newRequest(ctx context.Context, method, path string, body io.Reader, urlOptions *UrlOptions) (*http.Request, error) {
 	url := constructUrl(r.options.baseUrl, path, urlOptions)
-	fmt.Println(url)
-
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 
 	if err != nil {
@@ -159,8 +157,6 @@ func (r *Client) newRequest(ctx context.Context, method, path string, body io.Re
 
 func (r *Client) Fetch(ctx context.Context, method, path string, body interface{}, out interface{}, urlOptions *UrlOptions) error {
 	bodyBuffer := &bytes.Buffer{}
-	fmt.Println(method, path, body, out, urlOptions)
-
 	if body != nil {
 		bodyBytes, err := json.Marshal(body)
 		if err != nil {
