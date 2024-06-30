@@ -132,7 +132,7 @@ func constructUrl(baseUrl, route string, urlOptions *UrlOptions) string {
 	}
 
 	if urlOptions != nil && urlOptions.Subdomain != "" {
-		baseUrl = fmt.Sprintf("https://%s.fal.run/%s", urlOptions.Subdomain, urlOptions.AppId)
+		baseUrl = fmt.Sprintf("https://%s.fal.run/%s/", urlOptions.Subdomain, urlOptions.AppId)
 	}
 
 	return baseUrl + route + queryParams
@@ -140,6 +140,7 @@ func constructUrl(baseUrl, route string, urlOptions *UrlOptions) string {
 
 func (r *Client) newRequest(ctx context.Context, method, path string, body io.Reader, urlOptions *UrlOptions) (*http.Request, error) {
 	url := constructUrl(r.options.baseUrl, path, urlOptions)
+	fmt.Println(url)
 
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 
@@ -158,6 +159,7 @@ func (r *Client) newRequest(ctx context.Context, method, path string, body io.Re
 
 func (r *Client) Fetch(ctx context.Context, method, path string, body interface{}, out interface{}, urlOptions *UrlOptions) error {
 	bodyBuffer := &bytes.Buffer{}
+	fmt.Println(method, path, body, out, urlOptions)
 
 	if body != nil {
 		bodyBytes, err := json.Marshal(body)
@@ -176,15 +178,12 @@ func (r *Client) Fetch(ctx context.Context, method, path string, body interface{
 
 func (r *Client) do(request *http.Request, out interface{}) error {
 	resp, err := r.c.Do(request)
+
 	if err != nil {
 		return fmt.Errorf("failed to make request: %w", err)
 	}
 
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to make request with status code: %v", resp.StatusCode)
-	}
 
 	responseBytes, err := io.ReadAll(resp.Body)
 	if err != nil {

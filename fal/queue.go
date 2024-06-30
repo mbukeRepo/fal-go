@@ -4,6 +4,8 @@ package fal
 // TODO: comment everything and write some tests
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -56,8 +58,8 @@ type EnqueueResult struct {
 
 type QueueResult struct {
 	Status   `json:"status" binding:"oneof=in_progress completed in_queue"`
-	Logs     *interface{} `json:"logs"`
-	Response *interface{} `json:"response"`
+	Logs     []map[string]string `json:"logs"`
+	Response map[string]string   `json:"response"`
 }
 
 type Queue struct {
@@ -70,7 +72,15 @@ func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubsc
 		(runOptions.OnEnqueue)(id)
 	}
 
-	result, err := q.Submit(ctx, id, nil)
+	result, err := q.Submit(ctx, id, &RunOptions{
+		Input: runOptions.Input,
+		Path:  "/",
+		Options: &UrlOptions{
+			Subdomain: "queue",
+			AppId:     id,
+		},
+		Method: POST,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -78,20 +88,29 @@ func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubsc
 	errorChannel := make(chan error)
 	stopChannel := make(chan struct{})
 	requestIdChan := make(chan string, 1)
+	appIdChan := make(chan string, 1)
 	requestIdChan <- result.RequestId
+	appIdChan <- id
 
 	go func() {
-		ticker := time.NewTicker(time.Duration(runOptions.PollInterval) * time.Millisecond)
-		defer ticker.Stop()
+		requestId := <-requestIdChan
+		appId := <-appIdChan
 		for {
 			select {
 			case <-stopChannel:
+				close(stopChannel)
 				return
-			case <-ticker.C:
-				status, err := q.GetStatus(ctx, <-requestIdChan, &RunOptions{
-					Path: "/status",
+			case <-ctx.Done():
+				fmt.Println("Context done inside goroutine")
+				return
+			default:
+				time.Sleep(time.Duration(runOptions.PollInterval) * time.Millisecond)
+				status, err := q.GetStatus(ctx, requestId, &RunOptions{
+					Path:   "/requests/" + requestId + "/status",
+					Method: GET,
 					Options: &UrlOptions{
-						AppId: id,
+						AppId:     appId,
+						Subdomain: "queue",
 					},
 				})
 				if err != nil {
@@ -104,9 +123,17 @@ func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubsc
 					(runOptions.OnQueueUpdate)(*status)
 				}
 
-				if status.Status == COMPLETED {
-					result, err := q.Result(ctx, <-requestIdChan, &RunOptions{})
-
+				status.Status = Status(strings.TrimSpace(string(status.Status)))
+				if status.Status == Status(strings.ToUpper(string(COMPLETED))) {
+					result, err := q.Result(ctx, requestId, &RunOptions{
+						Path:   "/requests/" + requestId,
+						Method: GET,
+						Options: &UrlOptions{
+							AppId:     appId,
+							Subdomain: "queue",
+						},
+					})
+					fmt.Println(result)
 					if err != nil {
 						errorChannel <- err
 					} else {
@@ -117,38 +144,47 @@ func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubsc
 				}
 			}
 		}
-
 	}()
 
-	return nil, nil
+	select {
+	case result := <-resultChannel:
+		return &result, nil
+	case err := <-errorChannel:
+		return nil, err
+	case <-ctx.Done():
+		close(stopChannel)
+		return nil, ctx.Err()
+	}
 }
 
 func (q *Queue) Result(ctx context.Context, requestId string, runOptions *RunOptions) (*QueueResult, error) {
-	var out interface{}
+	var out QueueResult
 	err := q.c.Fetch(ctx, string(GET), runOptions.Path, nil, &out, runOptions.Options)
 	if err != nil {
 		return nil, err
 	}
 
-	return out.(*QueueResult), nil
+	return &out, nil
 }
 
 func (q *Queue) GetStatus(ctx context.Context, requestId string, runOptions *RunOptions) (*QueueStatus, error) {
-	var out interface{}
-	err := q.c.Fetch(ctx, string(GET), runOptions.Path, nil, &out, runOptions.Options)
+	var out QueueStatus
+	err := q.c.Fetch(ctx, string(runOptions.Method), runOptions.Path, nil, &out, runOptions.Options)
+	fmt.Println(out)
+
 	if err != nil {
 		return nil, err
 	}
 
-	return out.(*QueueStatus), nil
+	return &out, nil
 }
 
 func (q *Queue) Submit(ctx context.Context, requestId string, runOptions *RunOptions) (*EnqueueResult, error) {
-	var out interface{}
+	var out EnqueueResult
 	err := q.c.Fetch(ctx,
 		string(runOptions.Method),
 		runOptions.Path,
-		map[string]string{"request_id": requestId},
+		runOptions.Input,
 		&out,
 		runOptions.Options,
 	)
@@ -157,5 +193,5 @@ func (q *Queue) Submit(ctx context.Context, requestId string, runOptions *RunOpt
 		return nil, err
 	}
 
-	return out.(*EnqueueResult), nil
+	return &out, nil
 }
