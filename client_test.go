@@ -136,7 +136,10 @@ func TestClientFetchWithBody(t *testing.T) {
 	mockTripper := &mockRoundTripper{
 		RoundTripFunc: func(req *http.Request) (*http.Response, error) {
 			var receivedBody map[string]string
-			json.NewDecoder(req.Body).Decode(&receivedBody)
+			err := json.NewDecoder(req.Body).Decode(&receivedBody)
+			if err != nil {
+				t.Fatalf("Failed to decode request body: %v", err)
+			}
 			if !reflect.DeepEqual(receivedBody, requestBody) {
 				t.Errorf("Expected request body %v, got %v", requestBody, receivedBody)
 			}
