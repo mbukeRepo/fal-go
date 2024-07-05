@@ -121,10 +121,10 @@ func constructUrl(baseUrl, route string, urlOptions *UrlOptions) string {
 	if !strings.HasSuffix(baseUrl, "/") {
 		baseUrl += "/"
 	}
-	queryParams := ""
 
+	var queryParams string
 	if urlOptions != nil && urlOptions.Query != nil {
-		queryParams := "?"
+		queryParams = "?"
 		for key, value := range *urlOptions.Query {
 			queryParams += fmt.Sprintf("%s=%s&", key, value)
 		}
