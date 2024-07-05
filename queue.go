@@ -1,7 +1,5 @@
 package fal
 
-// TODO: double check the appId, the method and the path with the post request data made
-// TODO: comment everything and write some tests
 import (
 	"context"
 	"strings"

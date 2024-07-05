@@ -108,7 +108,6 @@ func WithHttpClient(httpClient *http.Client) ClientOption {
 
 type QueryParams map[string]string
 
-// TODO: validate the appId
 type UrlOptions struct {
 	Subdomain string
 	Query     *QueryParams
