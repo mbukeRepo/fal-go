@@ -22,7 +22,7 @@ import "github.com/mbukeRepo/fal-go"
 
 Create a client
 
-```
+```go
 client, err := fal.NewClient(fal.WithTokenFromEnv())
 
 if err != nil {
