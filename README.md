@@ -28,16 +28,17 @@ client, err := fal.NewClient(fal.WithTokenFromEnv())
 if err != nil {
 	panic(err)
 }
-ctx, cancel := context.WithCancel(context.Background())
-
-defer func() {
-	cancel()
-}()
 ```
 
 Run a model
 
 ```go
+ctx, cancel := context.WithCancel(context.Background())
+
+defer func() {
+	cancel()
+}()
+
 res, err := client.Queue.Subscribe(ctx, "fal-ai/fast-sdxl", &fal.QueueSubscribeOptions{
 	PollInterval:  500,
 	Input:         map[string]interface{}{"prompt": "a cat"},
