@@ -1,6 +1,6 @@
 # The fal.ai GoLang client
 
-The fal serverless GoLant Client is a robust and developer-friendly library designed for seamless integration of fal serverless functions.
+The fal serverless GoLang Client is a robust and developer-friendly library designed for seamless integration of fal serverless functions.
 
 ### Getting Started
 
