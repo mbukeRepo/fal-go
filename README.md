@@ -12,13 +12,19 @@ Use go get to install the package:
 go get -u github.com/mbukeRepo/fal-go
 ```
 
+#### Usage
+
+Start by configuring your credentials:
+
+```
+export FAL_AUTH_TOKEN=
+```
+
 Include the package in your project:
 
 ```go
 import "github.com/mbukeRepo/fal-go"
 ```
-
-#### Usage
 
 Create a client
 
