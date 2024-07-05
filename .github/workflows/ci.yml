@@ -20,7 +20,7 @@ jobs:
       - name: Test
         run: make test
         env:
-          REPLICATE_API_TOKEN: ${{ secrets.FAL_AUTH_TOKEN }}
+          FAL_AUTH_TOKEN: ${{ secrets.FAL_AUTH_TOKEN }}
 
       - name: Lint
         run: make lint
