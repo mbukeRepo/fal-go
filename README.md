@@ -36,7 +36,7 @@ if err != nil {
 }
 ```
 
-Run a model
+Running a function with `client.Run`
 
 ```go
 ctx, cancel := context.WithCancel(context.Background())
@@ -44,6 +44,15 @@ ctx, cancel := context.WithCancel(context.Background())
 defer func() {
 	cancel()
 }()
+
+res, err := client.Run(ctx, "fal-ai/fast-sdxl", &fal.RunInput{
+		"prompt": "...",
+})
+```
+
+Long-running functions with `client.Subscribe`
+
+```go
 
 res, err := client.Queue.Subscribe(ctx, "fal-ai/fast-sdxl", &fal.QueueSubscribeOptions{
 	PollInterval:  500,

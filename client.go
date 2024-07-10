@@ -14,7 +14,7 @@ import (
 
 var (
 	envAuthToken     = "FAL_AUTH_TOKEN"
-	proxyUrl         = "https://fal.run/fal-ai/"
+	proxyUrl         = "https://fal.run/"
 	defaultUserAgent = "fal/go"
 	ErrNoAuth        = errors.New(`no auth token or token source provided`)
 	ErrEnvVarNotSet  = fmt.Errorf("%s environment variable not set", envAuthToken)
@@ -139,6 +139,7 @@ func constructUrl(baseUrl, route string, urlOptions *UrlOptions) string {
 
 func (r *Client) newRequest(ctx context.Context, method, path string, body io.Reader, urlOptions *UrlOptions) (*http.Request, error) {
 	url := constructUrl(r.options.baseUrl, path, urlOptions)
+	fmt.Println(url, "url", path, "path", body, "body")
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 
 	if err != nil {
