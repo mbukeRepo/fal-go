@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"fal"
 	"fmt"
+
+	"github.com/mbukeRepo/fal-go"
 )
 
 func main() {
