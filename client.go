@@ -139,7 +139,6 @@ func constructUrl(baseUrl, route string, urlOptions *UrlOptions) string {
 
 func (r *Client) newRequest(ctx context.Context, method, path string, body io.Reader, urlOptions *UrlOptions) (*http.Request, error) {
 	url := constructUrl(r.options.baseUrl, path, urlOptions)
-	fmt.Println(url, "url", path, "path", body, "body")
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 
 	if err != nil {
