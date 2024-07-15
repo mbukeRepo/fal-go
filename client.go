@@ -10,15 +10,24 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
-	envAuthToken     = "FAL_AUTH_TOKEN"
-	proxyUrl         = "https://fal.run/"
-	defaultUserAgent = "fal/go"
-	ErrNoAuth        = errors.New(`no auth token or token source provided`)
-	ErrEnvVarNotSet  = fmt.Errorf("%s environment variable not set", envAuthToken)
-	ErrEnvVarEmpty   = fmt.Errorf("%s environment variable is empty", envAuthToken)
+	envAuthToken       = "FAL_AUTH_TOKEN"
+	proxyUrl           = "https://fal.run/"
+	defaultUserAgent   = "fal/go"
+	ErrNoAuth          = errors.New(`no auth token or token source provided`)
+	ErrEnvVarNotSet    = fmt.Errorf("%s environment variable not set", envAuthToken)
+	ErrEnvVarEmpty     = fmt.Errorf("%s environment variable is empty", envAuthToken)
+	defaultRetryPolicy = &retryPolicy{
+		maxRetries: 3,
+		backoff: &ExponentialBackOff{
+			Base:       1 * time.Second,
+			Jitter:     100 * time.Millisecond,
+			Multiplier: 2,
+		},
+	}
 )
 
 type Client struct {
@@ -27,11 +36,17 @@ type Client struct {
 	Queue   *Queue // for running long running tasks
 }
 
+type retryPolicy struct {
+	maxRetries int
+	backoff    Backoff
+}
+
 type clientOptions struct {
-	auth       string
-	baseUrl    string
-	httpClient *http.Client
-	userAgent  string
+	auth        string
+	baseUrl     string
+	httpClient  *http.Client
+	userAgent   string
+	retryPolicy *retryPolicy
 }
 
 type ClientOption func(*clientOptions) error
@@ -39,9 +54,10 @@ type ClientOption func(*clientOptions) error
 func NewClient(opts ...ClientOption) (*Client, error) {
 	c := &Client{
 		options: &clientOptions{
-			httpClient: http.DefaultClient,
-			userAgent:  defaultUserAgent,
-			baseUrl:    proxyUrl,
+			httpClient:  http.DefaultClient,
+			userAgent:   defaultUserAgent,
+			baseUrl:     proxyUrl,
+			retryPolicy: defaultRetryPolicy,
 		},
 	}
 	var errs []error
@@ -102,6 +118,16 @@ func WithUserAgent(userAgent string) ClientOption {
 func WithHttpClient(httpClient *http.Client) ClientOption {
 	return func(o *clientOptions) error {
 		o.httpClient = httpClient
+		return nil
+	}
+}
+
+func WithRetryPolicy(maxRetries int, backoff Backoff) ClientOption {
+	return func(o *clientOptions) error {
+		o.retryPolicy = &retryPolicy{
+			maxRetries: maxRetries,
+			backoff:    backoff,
+		}
 		return nil
 	}
 }
@@ -171,25 +197,61 @@ func (r *Client) Fetch(ctx context.Context, method, path string, body interface{
 	return r.do(req, out)
 }
 
+// shouldRetry returns true if the request should be retried.
+//
+// - GET requests should be retried if the response status code is 429 or 5xx.
+// - Other requests should be retried if the response status code is 429.
+func (r *Client) shouldRetry(response *http.Response, method string) bool {
+	if method == http.MethodGet {
+		return response.StatusCode == 429 || (response.StatusCode >= 500 && response.StatusCode < 600)
+	}
+
+	return response.StatusCode == 429
+}
+
 func (r *Client) do(request *http.Request, out interface{}) error {
-	resp, err := r.c.Do(request)
+	maxRetries := r.options.retryPolicy.maxRetries
+	backoff := r.options.retryPolicy.backoff
 
-	if err != nil {
-		return fmt.Errorf("failed to make request: %w", err)
-	}
+	attempts := 0
+	for ok := true; ok; ok = attempts < maxRetries {
+		resp, err := r.c.Do(request)
+		if err != nil || resp == nil {
+			return fmt.Errorf("failed to make request: %w", err)
+		}
 
-	defer resp.Body.Close()
+		defer resp.Body.Close()
+		responseBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
 
-	responseBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
-	}
+		if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+			if !r.shouldRetry(resp, request.Method) {
+				return fmt.Errorf("request failed with status code %d: %s", resp.StatusCode, responseBytes)
+			}
 
-	if out != nil {
-		if err := json.Unmarshal(responseBytes, &out); err != nil {
-			return fmt.Errorf("failed to unmarshal response: %w", err)
+			delay := backoff.NextDelay(attempts)
+
+			if delay > 0 {
+				time.Sleep(delay)
+			}
+
+			attempts++
+		} else {
+			if out != nil {
+				if err := json.Unmarshal(responseBytes, &out); err != nil {
+					return fmt.Errorf("failed to unmarshal response: %w", err)
+				}
+			}
+
+			return nil
 		}
 	}
 
-	return nil
+	if attempts > 0 {
+		return fmt.Errorf("request failed after %d attempts", maxRetries)
+	}
+
+	return fmt.Errorf("request failed")
 }
