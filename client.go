@@ -214,6 +214,8 @@ func (r *Client) do(request *http.Request, out interface{}) error {
 	backoff := r.options.retryPolicy.backoff
 
 	attempts := 0
+	var apiError *APIError
+
 	for ok := true; ok; ok = attempts < maxRetries {
 		resp, err := r.c.Do(request)
 		if err != nil || resp == nil {
@@ -227,8 +229,10 @@ func (r *Client) do(request *http.Request, out interface{}) error {
 		}
 
 		if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+			apiError = unmarshalAPIError(resp, responseBytes)
+
 			if !r.shouldRetry(resp, request.Method) {
-				return fmt.Errorf("request failed with status code %d: %s", resp.StatusCode, responseBytes)
+				return apiError
 			}
 
 			delay := backoff.NextDelay(attempts)
