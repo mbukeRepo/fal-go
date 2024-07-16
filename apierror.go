@@ -11,15 +11,18 @@ type ValueErrorDetail struct {
 	Type    string   `json:"type"`
 	Message string   `json:"msg"`
 	Loc     []string `json:"loc"`
-	Status  int      `json:"status"`
+}
+
+type ValueError struct {
+	Detail []ValueErrorDetail `json:"detail"`
 }
 
 type APIErrorDetail struct {
-	Status int    `json:"status"`
 	Detail string `json:"detail"`
 }
 
 type APIError struct {
+	Status int         `json:"status"`
 	Detail interface{} `json:"detail"`
 }
 
@@ -27,15 +30,17 @@ func (e *APIError) Error() string {
 	components := []string{}
 
 	if detail, ok := e.Detail.(*APIErrorDetail); ok {
-		components = append(components, fmt.Sprintf("status: %d", detail.Status))
+		components = append(components, fmt.Sprintf("status: %d", e.Status))
 		components = append(components, fmt.Sprintf("detail: %s", detail.Detail))
 	}
 
-	if detail, ok := e.Detail.(*ValueErrorDetail); ok {
-		components = append(components, fmt.Sprintf("status: %d", detail.Status))
-		components = append(components, fmt.Sprintf("type: %s", detail.Type))
-		components = append(components, fmt.Sprintf("message: %s", detail.Message))
-		components = append(components, fmt.Sprintf("location: %s", strings.Join(detail.Loc, ", ")))
+	if detail, ok := e.Detail.(*ValueError); ok {
+		for _, v := range detail.Detail {
+			components = append(components, fmt.Sprintf("status: %d", e.Status))
+			components = append(components, fmt.Sprintf("type: %s", v.Type))
+			components = append(components, fmt.Sprintf("message: %s", v.Message))
+			components = append(components, fmt.Sprintf("location: %s", strings.Join(v.Loc, ", ")))
+		}
 	}
 
 	output := strings.Join(components, ": ")
@@ -49,23 +54,21 @@ func (e *APIError) Error() string {
 
 func unmarshalAPIError(resp *http.Response, data []byte) *APIError {
 	apiErr := &APIError{}
+	apiErr.Status = resp.StatusCode
 
 	var apiErrorDetail APIErrorDetail
 	if err := json.Unmarshal(data, &apiErrorDetail); err == nil {
-		apiErrorDetail.Status = resp.StatusCode
 		apiErr.Detail = &apiErrorDetail
 		return apiErr
 	}
 
-	var valueErrorDetail ValueErrorDetail
+	var valueErrorDetail ValueError
 	if err := json.Unmarshal(data, &valueErrorDetail); err == nil {
-		valueErrorDetail.Status = resp.StatusCode
 		apiErr.Detail = &valueErrorDetail
 		return apiErr
 	}
 
 	apiErr.Detail = &APIErrorDetail{
-		Status: resp.StatusCode,
 		Detail: "Unknown error occurred",
 	}
 
