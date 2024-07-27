@@ -1,6 +1,6 @@
 # The fal.ai GoLang client
 
-The fal serverless GoLang Client is a robust and developer-friendly library designed for seamless integration of fal serverless functions.
+The fal serverless GoLang Client is a robust and developer-friendly library designed for seamless integration of fal serverless.
 
 ### Getting Started
 
@@ -36,7 +36,7 @@ if err != nil {
 }
 ```
 
-Running a function with `client.Run`
+Running a function with `client.Run`:
 
 ```go
 ctx, cancel := context.WithCancel(context.Background())
@@ -50,7 +50,7 @@ res, err := client.Run(ctx, "fal-ai/fast-sdxl", &fal.RunInput{
 })
 ```
 
-Long-running functions with `client.Subscribe`
+Long-running functions with `client.Subscribe`:
 
 ```go
 
