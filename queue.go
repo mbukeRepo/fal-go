@@ -58,6 +58,7 @@ type Queue struct {
 	Subdomain string
 }
 
+// Subscribe subscribes to a queue.
 func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubscribeOptions) (interface{}, error) {
 	if runOptions.OnEnqueue != nil {
 		(runOptions.OnEnqueue)(id)
@@ -147,6 +148,7 @@ func (q *Queue) Subscribe(ctx context.Context, id string, runOptions *QueueSubsc
 	}
 }
 
+// Result gets the result of a queue.
 func (q *Queue) Result(ctx context.Context, requestId string, runOptions *RunOptions) (interface{}, error) {
 	var out interface{}
 	err := q.c.Fetch(ctx, string(GET), runOptions.Path, nil, &out, runOptions.Options)
@@ -157,6 +159,7 @@ func (q *Queue) Result(ctx context.Context, requestId string, runOptions *RunOpt
 	return out, nil
 }
 
+// GetStatus gets the status of a queue.
 func (q *Queue) GetStatus(ctx context.Context, requestId string, runOptions *RunOptions) (*QueueStatus, error) {
 	var out QueueStatus
 	err := q.c.Fetch(ctx, string(runOptions.Method), runOptions.Path, nil, &out, runOptions.Options)
@@ -168,6 +171,7 @@ func (q *Queue) GetStatus(ctx context.Context, requestId string, runOptions *Run
 	return &out, nil
 }
 
+// Submit submits a request to a queue.
 func (q *Queue) Submit(ctx context.Context, requestId string, runOptions *RunOptions) (*EnqueueResult, error) {
 	var out EnqueueResult
 	err := q.c.Fetch(ctx,

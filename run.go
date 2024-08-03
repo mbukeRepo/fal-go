@@ -4,6 +4,7 @@ import "context"
 
 type RunInput map[string]interface{}
 
+// Run runs a function in FAL.
 func (c *Client) Run(ctx context.Context, functionId string, input *RunInput) (*map[string]interface{}, error) {
 	var out map[string]interface{}
 	err := c.Fetch(ctx, string(POST), functionId, input, &out, nil)

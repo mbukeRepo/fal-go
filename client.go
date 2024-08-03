@@ -30,6 +30,7 @@ var (
 	}
 )
 
+// Client is a client for the FAL API.
 type Client struct {
 	options *clientOptions
 	c       *http.Client
@@ -49,8 +50,10 @@ type clientOptions struct {
 	retryPolicy *retryPolicy
 }
 
+// ClientOption is a function that modifies an options struct.
 type ClientOption func(*clientOptions) error
 
+// NewClient creates a new FAL API client.
 func NewClient(opts ...ClientOption) (*Client, error) {
 	c := &Client{
 		options: &clientOptions{
@@ -86,6 +89,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	return c, nil
 }
 
+// WithToken sets the auth token used by the client.
 func WithToken(token string) ClientOption {
 	return func(o *clientOptions) error {
 		o.auth = token
@@ -93,6 +97,8 @@ func WithToken(token string) ClientOption {
 	}
 }
 
+// WithTokenFromEnv configures the client to use the auth token provided in the
+// FAL_AUTH_TOKEN environment variable.
 func WithTokenFromEnv() ClientOption {
 	return func(o *clientOptions) error {
 		token, ok := os.LookupEnv(envAuthToken)
@@ -108,6 +114,7 @@ func WithTokenFromEnv() ClientOption {
 	}
 }
 
+// WithBaseURL sets the base URL for the client.
 func WithUserAgent(userAgent string) ClientOption {
 	return func(o *clientOptions) error {
 		o.userAgent = userAgent
@@ -115,6 +122,7 @@ func WithUserAgent(userAgent string) ClientOption {
 	}
 }
 
+// WithHTTPClient sets the HTTP client used by the client.
 func WithHttpClient(httpClient *http.Client) ClientOption {
 	return func(o *clientOptions) error {
 		o.httpClient = httpClient
@@ -122,6 +130,7 @@ func WithHttpClient(httpClient *http.Client) ClientOption {
 	}
 }
 
+// WithRetryPolicy sets the retry policy used by the client.
 func WithRetryPolicy(maxRetries int, backoff Backoff) ClientOption {
 	return func(o *clientOptions) error {
 		o.retryPolicy = &retryPolicy{
@@ -180,6 +189,7 @@ func (r *Client) newRequest(ctx context.Context, method, path string, body io.Re
 	return req, nil
 }
 
+// Fetch makes an HTTP request to FAL's API.
 func (r *Client) Fetch(ctx context.Context, method, path string, body interface{}, out interface{}, urlOptions *UrlOptions) error {
 	bodyBuffer := &bytes.Buffer{}
 	if body != nil {
@@ -209,6 +219,7 @@ func (r *Client) shouldRetry(response *http.Response, method string) bool {
 	return response.StatusCode == 429
 }
 
+// do makes an HTTP request to FAL's API.
 func (r *Client) do(request *http.Request, out interface{}) error {
 	maxRetries := r.options.retryPolicy.maxRetries
 	backoff := r.options.retryPolicy.backoff
